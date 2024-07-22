@@ -1,1 +1,36 @@
+#continuing from the merged ExpAll
+ExpAll <- merge(Exp0_GEX, y = c(Exp1_GEX, Exp2_GEX, Exp3_GEX, Exp4_GEX, Exp5_GEX),add.cell.ids = c("T2","T4","T5","TK1","TK2","TK3"), project = "rgc_cmo_atlas")
+ExpAll <- NormalizeData(ExpAll)
+ExpAll <- JoinLayers(ExpAll) #this is because the CFM function we have does not work well with Seuratv5 layers
+ExpAll[["percent.mt"]] <- PercentageFeatureSet(ExpAll, pattern = "^mt-") #identifying mitochondrial genes
 
+#Filter 1: removing UMI < 2400; features < 1200; Mt >= 10
+ExpAll <- CFM(ExpAll, flim = 1200, clim = 3600)
+table(ExpAll$FeaturePercentile); table(ExpAll$UMIPercentile)
+ExpAll@active.ident <- ExpAll$FeaturePercentile
+ExpAll <- subset(ExpAll, idents = c(400,800,1200), invert = TRUE)
+ExpAll@active.ident <- ExpAll$UMIPercentile
+ExpAll <- subset(ExpAll, idents = c(1200,2400), invert = TRUE)
+ExpAll@active.ident <- ExpAll$MtPc
+ExpAll <- subset(ExpAll, idents = c(6,8,10), invert = FALSE)
+
+#Filter 2:
+
+
+ExpAll <- QuickProcess(ExpAll)
+DimPlot(ExpAll, reduction = "umap", label = TRUE, group.by = "seurat_clusters") + theme(aspect.ratio = 1)
+#saveRDS(ExpAll, "ExpAll_f1.rds")
+
+#Go through Adult Retinal Identification
+RetinaID(ExpAll)
+ExpAll$f1_ident <- mapvalues(ExpAll$seurat_clusters, from = c(25,38,51,50,23,36,46,47,45,0,39,1:22,24,26:35,37,40:44,48:49,52), 
+                               to = c(sprintf("Rods/Cones/MuGl/MiGl/Endo/BP_%s",1:2),"HZ","MuGl/MiGl/AC",sprintf("AC_%s",1:4),sprintf("AC_Lgr5%s",1:1),"RGC/AC","RGC/AC_Lgr5",sprintf("RGC_%s",1:42)))
+DimPlot(ExpAll, reduction = "umap", label = TRUE, group.by = "f1_ident") + theme(aspect.ratio = 1)
+ExpAll@active.ident <- ExpAll$f1_ident
+ExpAll <- subset(ExpAll, idents = c(sprintf("Rods/Cones/MuGl/MiGl/Endo/BP_%s",1:2),"HZ","MuGl/MiGl/AC",sprintf("AC_%s",1:4),sprintf("AC_Lgr5%s",1:1)), invert = TRUE)
+DimPlot(ExpAll, reduction = "umap", label = TRUE, group.by = "orig.ident") + theme(aspect.ratio = 1)
+DimPlot(ExpAll, reduction = "umap", label = TRUE, group.by = "hash.ID") + theme(aspect.ratio = 1)
+export = CreateSeuratObject(counts = LayerData(ExpAll, assay = "RNA", layer = "counts"), project = "Export", meta.data = ExpAll@meta.data)
+export@reductions$pca <- ExpAll@reductions$pca; export@reductions$umap <- ExpAll@reductions$umap
+DimPlot(export, reduction = "umap", label = TRUE, group.by = "hash.ID") + theme(aspect.ratio = 1)
+ExpAll <- export; rm(export)
