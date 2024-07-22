@@ -68,7 +68,15 @@ revised_color <- c(color_list[1:8],"#D3D3D3","#808080")
 DimPlot(Exp5_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 DimPlot(Exp5_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 
-#merging the data
+#making the CR0.9 and Hash.ID labels unique to each experiment
+Exp0$hash.ID <- "Exp0"
+Exp1_CMO$hash.ID <- paste("Exp1_",Exp1_CMO$hash.ID, sep = "");Exp2_CMO$hash.ID <- paste("Exp2_",Exp2_CMO$hash.ID, sep = "");Exp3_CMO$hash.ID <- paste("Exp3_",Exp3_CMO$hash.ID, sep = "");Exp4_CMO$hash.ID <- paste("Exp4_",Exp4_CMO$hash.ID, sep = "");Exp5_CMO$hash.ID <- paste("Exp5_",Exp5_CMO$hash.ID, sep = "");
+Exp1_CMO$CR0.9 <- paste("Exp1_",Exp1_CMO$CR0.9, sep = "");Exp2_CMO$CR0.9 <- paste("Exp2_",Exp2_CMO$CR0.9, sep = "");Exp3_CMO$CR0.9 <- paste("Exp3_",Exp3_CMO$CR0.9, sep = "");Exp4_CMO$CR0.9 <- paste("Exp4_",Exp4_CMO$CR0.9, sep = "");Exp5_CMO$CR0.9 <- paste("Exp5_",Exp5_CMO$CR0.9, sep = "");
+colnames(Exp1_CMO) <- paste("Exp1_",colnames(Exp1_CMO), sep = ""); colnames(Exp2_CMO) <- paste("Exp2_",colnames(Exp2_CMO), sep = "");colnames(Exp3_CMO) <- paste("Exp3_",colnames(Exp3_CMO), sep = "");colnames(Exp4_CMO) <- paste("Exp4_",colnames(Exp4_CMO), sep = "");colnames(Exp5_CMO) <- paste("Exp5_",colnames(Exp5_CMO), sep = "")
+
+#merging the data and creating some different assignment labels
 ExpAll <- merge(Exp0_GEX, y = c(Exp1_GEX, Exp2_GEX, Exp3_GEX, Exp4_GEX, Exp5_GEX),add.cell.ids = c("T2","T4","T5","TK1","TK2","TK3"), project = "rgc_cmo_atlas")
-
-
+ExpAll$hash.ID_rev <- ExpAll$hash.ID
+ExpAll$hash.ID_broad <- mapvalues(ExpAll$hash.ID, from = c(names(table(ExpAll$hash.ID))), to = c(rep("Assigned",10),"Multiplet","Exp0","Negative"))
+ExpAll$orig.ident.multiplet <- ExpAll$orig.ident
+ExpAll$orig.ident.multiplet[which(ExpAll$hash.ID_broad == "Multiplet")] <- "Multiplet"
