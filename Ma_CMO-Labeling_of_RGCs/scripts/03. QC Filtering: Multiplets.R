@@ -190,3 +190,9 @@ ExpAll$newidents_rev <- mapvalues(ExpAll$newidents, from = c("UNK"), to = c("35_
 plot <- DimPlot(ExpAll, reduction = "umap", label = TRUE, group.by = "newidents_rev", pt.size = 0.15, label.size = 5) + theme(aspect.ratio = 1)
 c18_Novel_b <- CellSelector(plot, ExpAll$newidents_rev, ident = "18_Novel_b")
 ExpAll$newidents_rev[c18_Novel_b] <- "18_Novel_b"
+
+#reordering clusters based on cluster size
+ExpAll$newidents_rev_ordered <- droplevels(ExpAll$newidents_rev)
+ExpAll$newidents_rev_ordered <- factor(ExpAll$newidents_rev_ordered, levels = labels$Var1) #labels is a csv file separately generated with the correct order, it is not provided here.
+ExpAll$cluster_num <- ExpAll$newidents_rev_ordered
+ExpAll$cluster_num <- mapvalues(ExpAll$newidents_rev_ordered, from = levels(ExpAll$newidents_rev_ordered), to = c(1:47))
