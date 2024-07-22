@@ -1,12 +1,15 @@
 #This is the code used to process the raw data from cell ranger into the clusterplot from the publication.
 
 #Step 1: Read in Cell Ranger Data for all experiments
-#reading in Assignment data: this is solely for obtaining the cell-ranger filtered cell lists from the raw counts 
+#reading in Assignment data: this is for obtaining the cell-ranger filtered cell lists from the raw counts and calculating the 80% assignment confidence levels 
 Exp1_Assign <- read.csv("D:/Single Cell Analyses/RGC_T4_newintron/outs/multi/multiplexing_analysis/assignment_confidence_table.csv")
 Exp2_Assign <- read.csv("D:/Single Cell Analyses/RGC_T5_newintron/outs/multi/multiplexing_analysis/assignment_confidence_table.csv")
 Exp3_Assign <- read.csv("D:/Single Cell Analyses/RGC_MPTK1_newintron/outs/multi/multiplexing_analysis/assignment_confidence_table.csv")
 Exp4_Assign <- read.csv("D:/Single Cell Analyses/RGC_MPTK2_newintron/outs/multi/multiplexing_analysis/assignment_confidence_table.csv")
 Exp5_Assign <- read.csv("D:/Single Cell Analyses/RGC_MPTK3_newintron/outs/multi/multiplexing_analysis/assignment_confidence_table.csv")
+
+#Identifying the 80% confidence assignments
+Exp1_Assign$CR0.8 <- CR0.8_Assign(Exp1_Assign, CMOnum = 6);Exp2_Assign$CR0.8 <- CR0.8_Assign(Exp2_Assign, CMOnum = 6);Exp3_Assign$CR0.8 <- CR0.8_Assign(Exp3_Assign, CMOnum = 6);Exp4_Assign$CR0.8 <- CR0.8_Assign(Exp4_Assign, CMOnum = 3);Exp5_Assign$CR0.8 <- CR0.8_Assign(Exp5_Assign, CMOnum = 6);
 
 #Exp0: no-CMO labels
 Exp0_GEX <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_T2_newintron/filtered_feature_bc_matrix")
@@ -14,17 +17,15 @@ Exp0_GEX <- CreateSeuratObject(counts = Exp0_GEX, project = "Trial2", min.cells 
 Exp0_GEX$CR0.9 <- "Exp0"; Exp0_GEX$Hash.ID <- "Exp0"
 
 #Exp1 - we separate the GEX and CMO from raw count matrices and use isolate them to cell-ranger filtered cells
+#we also write in the 90% and 80% confidence assignments and process them through HTODemux and verify the GEX and CMO matrices align.
 Exp1_fulldata <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_T4_newintron/outs/multi/count/raw_feature_bc_matrix")
 Exp1_GEX <- CreateSeuratObject(counts = Exp1_fulldata[[1]], project = "Trial4", min.cells = 0, min.features = 0)
 Exp1_CMO <- CreateSeuratObject(counts = Exp1_fulldata[[2]], project = "Trial4", min.cells = 0, min.features = 0)
 Exp1_GEX <- subset(Exp1_GEX, cells = Exp1_Assign$Barcode);Exp1_CMO <- subset(Exp1_CMO, cells = colnames(Exp1_GEX));
 Exp1_GEX$CR0.9 <- Exp1_Assign$Assignment;Exp1_CMO$CR0.9 <- Exp1_Assign$Assignment; Exp1_GEX$CR0.8 <- Exp1_Assign$CR0.8;Exp1_CMO$CR0.8 <- Exp1_Assign$CR0.8
-Exp1_CMO <- CMO_Process(Exp1_CMO, CMO = c(names(table(Exp1_CMO$CR0.9))[2:7]))
-DimPlot(Exp1_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
-DimPlot(Exp1_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
+Exp1_CMO <- CMO_Process(Exp1_CMO, CMO = c(names(table(Exp1_CMO$CR0.9))[2:7])) #this is HTOdemux
 Exp1_GEX$hash.ID <- Exp1_CMO$hash.ID; 
-identical(colnames(Exp1_GEX),Exp1_Assign$Barcodes)
-#saveRDS(Exp1_CMO, "Exp1_CMO.rds"); saveRDS(Exp1_GEX, "Exp1_GEX_f0.rds")
+identical(colnames(Exp1_GEX),Exp1_Assign$Barcodes) #this is the initial unfiltered state.
 
 Exp2_fulldata <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_T5_newintron/outs/multi/count/raw_feature_bc_matrix")
 Exp2_GEX <- CreateSeuratObject(counts = Exp2_fulldata[[1]], project = "Trial5", min.cells = 0, min.features = 0)
@@ -32,10 +33,7 @@ Exp2_CMO <- CreateSeuratObject(counts = Exp2_fulldata[[2]], project = "Trial5", 
 Exp2_GEX <- subset(Exp2_GEX, cells = Exp2_Assign$Barcode);Exp2_CMO <- subset(Exp2_CMO, cells = colnames(Exp2_GEX));
 Exp2_GEX$CR0.9 <- Exp2_Assign$Assignment;Exp2_CMO$CR0.9 <- Exp2_Assign$Assignment; Exp2_GEX$CR0.8 <- Exp2_Assign$CR0.8;Exp2_CMO$CR0.8 <- Exp2_Assign$CR0.8
 Exp2_CMO <- CMO_Process(Exp2_CMO, CMO = c(names(table(Exp2_CMO$CR0.9))[2:7]))
-DimPlot(Exp2_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
-DimPlot(Exp2_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 Exp2_GEX$hash.ID <- Exp2_CMO$hash.ID; 
-#saveRDS(Exp2_CMO, "Exp2_CMO.rds"); saveRDS(Exp2_GEX, "Exp2_GEX_f0.rds")
 
 Exp3_fulldata <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_MPTK1_newintron/outs/multi/count/raw_feature_bc_matrix")
 Exp3_GEX <- CreateSeuratObject(counts = Exp3_fulldata[[1]], project = "MPTK1", min.cells = 3, min.features = 200)
@@ -43,10 +41,7 @@ Exp3_CMO <- CreateSeuratObject(counts = Exp3_fulldata[[2]], project = "MPTK1", m
 Exp3_GEX <- subset(Exp3_GEX, cells = Exp3_Assign$Barcode);Exp3_CMO <- subset(Exp3_CMO, cells = colnames(Exp3_GEX));
 Exp3_GEX$CR0.9 <- Exp3_Assign$Assignment;Exp3_CMO$CR0.9 <- Exp3_Assign$Assignment; Exp3_GEX$CR0.8 <- Exp3_Assign$CR0.8;Exp3_CMO$CR0.8 <- Exp3_Assign$CR0.8
 Exp3_CMO <- CMO_Process(Exp3_CMO, CMO = c(names(table(Exp3_CMO$CR0.9))[1:6]))
-DimPlot(Exp3_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
-DimPlot(Exp3_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 Exp3_GEX$hash.ID <- Exp3_CMO$hash.ID; 
-#saveRDS(Exp3_CMO, "Exp3_CMO.rds"); saveRDS(Exp3_GEX, "Exp3_GEX_f0.rds")
 
 Exp4_fulldata <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_MPTK2_newintron/outs/multi/count/raw_feature_bc_matrix")
 Exp4_GEX <- CreateSeuratObject(counts = Exp4_fulldata[[1]], project = "MPTK2", min.cells = 0, min.features = 0)
@@ -54,10 +49,7 @@ Exp4_CMO <- CreateSeuratObject(counts = Exp4_fulldata[[2]], project = "MPTK2", m
 Exp4_GEX <- subset(Exp4_GEX, cells = Exp4_Assign$Barcode);Exp4_CMO <- subset(Exp4_CMO, cells = colnames(Exp4_GEX));
 Exp4_GEX$CR0.9 <- Exp4_Assign$Assignment;Exp4_CMO$CR0.9 <- Exp4_Assign$Assignment; Exp4_GEX$CR0.8 <- Exp4_Assign$CR0.8;Exp4_CMO$CR0.8 <- Exp4_Assign$CR0.8
 Exp4_CMO <- CMO_Process(Exp4_CMO, CMO = c(names(table(Exp4_CMO$CR0.9))[1:3]))
-DimPlot(Exp4_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
-DimPlot(Exp4_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 Exp4_GEX$hash.ID <- Exp4_CMO$hash.ID; 
-#saveRDS(Exp4_CMO, "Exp4_CMO.rds"); saveRDS(Exp4_GEX, "Exp4_GEX_f0.rds")
 
 Exp5_fulldata <- Read10X(data.dir = "D:/Single Cell Analyses/RGC_MPTK3_newintron/outs/multi/count/raw_feature_bc_matrix")
 Exp5_GEX <- CreateSeuratObject(counts = Exp5_fulldata[[1]], project = "MPTK3", min.cells = 0, min.features = 0)
@@ -65,23 +57,18 @@ Exp5_CMO <- CreateSeuratObject(counts = Exp5_fulldata[[2]], project = "MPTK3", m
 Exp5_GEX <- subset(Exp5_GEX, cells = Exp5_Assign$Barcode);Exp5_CMO <- subset(Exp5_CMO, cells = colnames(Exp5_GEX));
 Exp5_GEX$CR0.9 <- Exp5_Assign$Assignment;Exp5_CMO$CR0.9 <- Exp5_Assign$Assignment; Exp5_GEX$CR0.8 <- Exp5_Assign$CR0.8;Exp5_CMO$CR0.8 <- Exp5_Assign$CR0.8
 Exp5_CMO <- CMO_Process(Exp5_CMO, CMO = c(names(table(Exp5_CMO$CR0.9))[2:7]))
+Exp5_GEX$hash.ID <- Exp5_CMO$hash.ID; 
+
+#Example of Viewing the CMO plots
+ggplotColours <- function(n = 8, h = c(0, 360) + 15){
+  if ((diff(h) %% 360) < 1) h[2] <- h[2] - 360/n
+  hcl(h = (seq(h[1], h[2], length = n)), c = 100, l = 65)
+}
+revised_color <- c(color_list[1:8],"#D3D3D3","#808080")
 DimPlot(Exp5_CMO, reduction = "umap", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
 DimPlot(Exp5_CMO, reduction = "tsne", label = TRUE, group.by = "hash.ID", cols = revised_color, pt.size = 0.75) + theme(aspect.ratio = 1)
-Exp5_GEX$hash.ID <- Exp5_CMO$hash.ID; 
-#saveRDS(Exp5_CMO, "Exp5_CMO.rds"); saveRDS(Exp5_GEX, "Exp5_GEX_f0.rds")
 
+#merging the data
 ExpAll <- merge(Exp0_GEX, y = c(Exp1_GEX, Exp2_GEX, Exp3_GEX, Exp4_GEX, Exp5_GEX),add.cell.ids = c("T2","T4","T5","TK1","TK2","TK3"), project = "rgc_cmo_atlas")
-ExpAll <- NormalizeData(ExpAll)
-ExpAll <- JoinLayers(ExpAll)
-ExpAll[["percent.mt"]] <- PercentageFeatureSet(ExpAll, pattern = "^mt-")
-ExpAll <- CFM(ExpAll, flim = 1200, clim = 3600)
-table(ExpAll$FeaturePercentile); table(ExpAll$UMIPercentile)
-#FilterGenes with Genes <= 1200, UMI <= 2400, MT >= 10
-ExpAll@active.ident <- ExpAll$FeaturePercentile
-ExpAll <- subset(ExpAll, idents = c(400,800,1200), invert = TRUE)
-ExpAll@active.ident <- ExpAll$UMIPercentile
-ExpAll <- subset(ExpAll, idents = c(1200,2400), invert = TRUE)
-ExpAll@active.ident <- ExpAll$MtPc
-ExpAll <- subset(ExpAll, idents = c(6,8,10), invert = FALSE)
-#saveRDS(ExpAll, "ExpAll_f1.rds")
+
 
