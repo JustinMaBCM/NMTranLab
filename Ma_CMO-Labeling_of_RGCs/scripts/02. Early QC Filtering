@@ -5,6 +5,10 @@ ExpAll <- JoinLayers(ExpAll) #this is because the CFM function we have does not 
 ExpAll[["percent.mt"]] <- PercentageFeatureSet(ExpAll, pattern = "^mt-") #identifying mitochondrial genes
 
 #Filter 1: removing UMI < 2400; features < 1200; Mt >= 10
+ExpAll <- subset(ExpAll, cells = colnames(ExpAll)[(ExpAll[["nCount_RNA"]] >= 2400)])
+ExpAll <- subset(ExpAll, cells = colnames(ExpAll)[(ExpAll[["nFeature_RNA"]] >= 1200)])
+ExpAll <- subset(ExpAll, cells = colnames(ExpAll)[(ExpAll[["percent.mt"]] < 10)])
+
 ExpAll <- CFM(ExpAll, flim = 1200, clim = 3600)
 table(ExpAll$FeaturePercentile); table(ExpAll$UMIPercentile)
 ExpAll@active.ident <- ExpAll$FeaturePercentile
