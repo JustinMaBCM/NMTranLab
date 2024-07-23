@@ -89,3 +89,81 @@ DietExport <- function(SO){
   SO <- export; rm(export)
   return(SO)
 }
+
+
+#Function that reads a Seurat Object and a Subset of itself.
+#Also takes in the input of two character vectors for the naming of the new clusters.
+#Returns a new metadata column -> SubclusterID
+#Note: the subcluster may need to be named in order of cluster size? (maybe).
+Subcluster_ID <- function(x, y, Cluster = c("NA"), Subcluster = c("NA"), Drop = FALSE)
+{
+  require(plyr)
+  require(dplyr)
+  require(Seurat)
+  require(Matrix)
+  require(patchwork)
+  require(scales)
+  require(tibble)
+  
+  #if cluster information is not provided, defaults to using the original identities of the clusters
+  if (Cluster[1] == "NA") {Cluster = levels(x@active.ident)}
+  if (Subcluster[1]== "NA") {Subcluster = levels(y@active.ident)}
+  #if cluster information is provided, it must have the same cluster number as in the originals
+  if (length(Cluster) != length(levels(x@active.ident))) {(print("Number of cluster levels do not match"))}
+  if (length(Subcluster) != length(levels(y@active.ident))) {(print("Number of subcluster levels do not match"))}
+  #checks to make sure that the wanted cluster/subcluster identities will not overlap
+  if (sum(match(levels(Cluster), levels(Subcluster))) > 0) {(print("Cluster and Subcluster identities overlap"))}
+  
+  print("passed checking")
+  
+  #newID <- Subcluster
+  #names(newID) <- levels(y)
+  #y <- RenameIdents(y, newID)
+  
+  #labeling the two identities
+  cID1 <- x@active.ident
+  cID2 <- y@active.ident
+  #convert into data frame
+  dcID1 <- data.frame(cID1)
+  dcID2 <- data.frame(cID2)
+  #add an identifier column to ensure that row order does not change
+  dcID1$ID <- 1:nrow(dcID1)
+  #merge by rownames, dcID2 columns with no values will be NA; keep_order does not seem to work?
+  dcID_M <- merge.data.frame(dcID1, dcID2, by = 'row.names', all = TRUE, keep_order = 1) 
+  dcID_M <- dcID_M[order(dcID_M$ID), ] #reaffirm row order using the ID column
+  
+  #revalue the identities to the provided IDs, add cID1 levels to cID2
+  #Should modify this with loop to only add levels if it is not duplicate with Cluster2
+  dcID_M$cID1 <- mapvalues(dcID_M$cID1, from = levels(dcID_M$cID1), to = Cluster)
+  dcID_M$cID2 <- mapvalues(dcID_M$cID2, from = levels(dcID_M$cID2), to = Subcluster)
+  
+  addLev = c()
+  for (i in 1:length(levels(cID1))) {
+    if (is.na(match(levels(cID1)[i], levels(cID2)))) {addLev <- c(addLev, levels(cID1[i]))} 
+    
+  }
+  
+  dcID_M$cID2 <- factor(dcID_M$cID2, levels = c(levels(dcID_M$cID2), levels(dcID_M$cID1)))
+  #dcID_M$cID1 <- factor(dcID_M$cID1, levels = levels(dcID_M$cID2))
+  
+  #for each row, replace the missing values from cID2 with the values from cID1
+  for (i in 1:(dim(dcID_M)[1])) {
+    if (is.na(as.character((dcID_M$cID2[i])))) {
+      dcID_M$cID2[i] <- dcID_M$cID1[i]
+    }
+  }
+  #separate dcID_M$cID2 from the dataframe
+  newClusterID <- dcID_M$cID2
+  
+  #drop unused factor levels
+  if (Drop == TRUE)   {newClusterID <- droplevels(newClusterID)}
+  
+  #write this into a new metadata slot and replace the active identity of the original Seurat Object
+  #also write back in the names attribute and rewrite the active identity of the main Seurat Object
+  x@meta.data$SubclusterID <- newClusterID
+  attr(newClusterID, "names") <- row.names(dcID1)
+  x@active.ident <- newClusterID
+  
+  print("rewrite success")
+  return(x)
+}
