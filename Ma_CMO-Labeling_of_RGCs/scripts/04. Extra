@@ -1,0 +1,83 @@
+#Correlation plot for Inter-retina Variance
+ExpAll@active.ident <- factor(ExpAll$hash.ID_rev2.5) #this is separation by individual retinas
+var.genes <- ExpAll[["RNA"]]@meta.data$var.features[!is.na(ExpAll[["RNA"]]@meta.data$var.features)]
+AvgExp <- as.data.frame(AverageExpression(ExpAll, features = all.genes)$RNA)
+colnames(AvgExp) <- levels(ExpAll@active.ident)
+AvgExp_Var <- AvgExp[var.genes,]
+
+library(corrplot)
+M = cor(AvgExp, method = 'pearson')
+corrplot(M, method = "circle", is.corr = FALSE)
+
+#calculating StDev, Mean, CV
+AvgExp[,34] <- apply(AvgExp[,c(2:7,9:14,16:21,23:25,27:32)], MARGIN = 1, FUN = sd)
+AvgExp[,35] <- apply(AvgExp[,c(2:7,9:14,16:21,23:25,27:32)], MARGIN = 1, FUN = mean)
+AvgExp[,36] <- AvgExp[,34]/AvgExp[,35]*100
+colnames(AvgExp)[34] <- "StdDev";colnames(AvgExp)[35] <- "Mean";colnames(AvgExp)[36] <- "CV";
+
+
+
+#ClusterSpecificVariance - variance of cluster marker genes within their specific cluster of interest.
+clusters_genes_v2 <- list( #this is to match with newident_rev_ordered
+  c("Trarg1","Amigo2","Cmtm8"),c("Trarg1","Lypd1","Ldb2"),c("Foxp2","Irx4"),c("Foxp2","Gria1"),
+  c("Penk","Zic1"),c("Tbr1","Pcdh20"),c("Eomes","Cdh6","Irx1"),c("Eomes","Cdh6","Gm11100"),
+  c("Tbr1","Slc7a11"),c("Dab1","Cck","Tent5a"),c("Neurod2","Satb2","Mmp17"),c("Tbr1","Slc35f3","Irx4"),
+  c("Bnc2","Tafa4","Ptprt"),c("Bnc2","Gpr88"),c("Trarg1","Runx1","Ntrk1"),c("Tbr1","Calca","Zeb2"),
+  c("Penk","Meis2","Col11a1"),c("Mafb","Kcnd2","Vgf"),c("Cacna1e","Gm17750"),c("Neurod2","Satb2","Penk","Prdm8","Ipcef1"),
+  c("Bnc2","Calb1","Col25a1","Serpinb8","Efnb2"),c("Neurod2","Satb2","Penk","Prdm8","Gal"),c("Mafb","Kcnd2","Fzd6","Tpbg"),c("Mafb","Kcnd2","Prokr1"),
+  c("Neurod2","Satb2","Slc17a7"),c("Neurod2","Satb2","Penk","Aga"),c("Bnc2","Calb2","Col25a1","Fam129a"),c("Irx3","Prkcg"),
+  c("Opn4","Gpc5","Cdhr1"),c("Irx3","Pcdh20","Prkg2"),c("Neurod2","Satb2","Cpne5"),c("Foxp2","Coch"),c("Foxp2","Anxa3"),
+  c("Opn4","Pnoc"),c("Neurod2","Satb2","Chrm2"),c("Opn4","Adra2a"),c("Irx3","Pcdh20","Pcdh11x"),c("Spp1","Fes"),
+  c("Irx3","Ceacam10"),c("Dab1","Coch","Stxbp6"),c("Foxp2","Sema5a"),
+  c("Opn4","Nmb"),c("Neurod2","Satb2","S100b"),c("Spp1","Opn4","Il1rapl2"),c("Spp1","Kit"),c("Bhlhe22","Fxyd6"),c("Spp1","Chrm1"))
+
+
+explist <- list()
+AvgCov <- list()
+
+ExpAll@active.ident <- ExpAll$newidents_rev_ordered
+all.genes <- rownames(ExpAll)
+for (i in 1:length(levels(ExpAll$newidents_rev_ordered))){
+  ExpAll_T <- subset(ExpAll, idents = levels(ExpAll)[i])
+  gc()
+  ExpAll_T@active.ident <- ExpAll_T$newidents_rev_ordered
+  AvgExp_T <- AverageExpression(ExpAll_T, group.by = "hash.ID_rev2.5", features = all.genes)
+  AvgExp_T <- as.data.frame(AvgExp_T$RNA)
+  AvgExp_M <- AvgExp_T[clusters_genes_v2[[i]],]
+  drop <- c("Exp0","Exp1-a","Exp1-b","Exp1-c","Exp1-d","Exp1-e","Exp1-f","Exp1-Negative","Exp2-Negative","Exp3-Negative","Exp4-Negative","Exp5-Negative") #only for not counting Exp1
+  AvgExp_M <- AvgExp_M[,!(names(AvgExp_M) %in% drop)] #remove Exp0, Exp1, and Unassigned cells
+  
+  length <- length(AvgExp_M)
+  AvgExp_M$min <- apply(AvgExp_M[1:length], MARGIN = 1, min)
+  AvgExp_M$max <- apply(AvgExp_M[1:length], MARGIN = 1, max)
+  AvgExp_M$med <- apply(AvgExp_M[1:length], MARGIN = 1, median)
+  AvgExp_M$mean <- apply(AvgExp_M[1:length], MARGIN = 1, mean)
+  AvgExp_M$SD <- apply(AvgExp_M[1:length], MARGIN = 1, sd)
+  AvgExp_M$CoV <- AvgExp_M$SD/AvgExp_M$mean
+  
+  explist[[i]] <- AvgExp_M
+  AvgCov[[i]] <- mean(AvgExp_M$CoV)
+  print(i)
+}
+AvgCov <- unlist(AvgCov)
+names(AvgCov) <- levels(ExpAll$newidents_rev_ordered)
+write.csv(AvgCov, "AvgCov_Trunc.csv") #averaged data here
+
+library(data.table)
+x <- rbind(explist)
+AllExpList <- rbindlist(explist, fill = TRUE)
+#AllExpList <- AllExpList[,c(1,30,2,3,32,33,4:13,31,14:29)] This was to fix something from before?
+AllExpList$gene <- unlist(sapply(explist, rownames))
+
+clusternames <- c()
+names <- levels(ExpAll$newidents_rev_ordered)
+x <- sapply(clusters_genes_v2, print)
+for (i in 1:length(clusters_genes_v2)){
+  clusternames <- c(clusternames, rep(names[i],length(x[[i]])))
+}
+
+AllExpList$cluster <- clusternames 
+AllExpList <- AllExpList[,c(29,28,1:27)]
+
+write.csv(AllExpList, "AllExplist.csv") #full individual data here
+
